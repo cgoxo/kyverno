@@ -218,7 +218,6 @@ func main() {
 		logger.Error(err, "Failed to create kubernetes leader client")
 		os.Exit(1)
 	}
-
 	// sanity checks
 	if !utils.CRDsInstalled(dynamicClient.Discovery()) {
 		logger.Error(fmt.Errorf("CRDs not installed"), "Failed to access Kyverno CRDs")
@@ -381,7 +380,10 @@ func main() {
 	policyCacheController := policycachecontroller.NewController(policyCache, kyvernoV1.ClusterPolicies(), kyvernoV1.Policies())
 
 	certRenewer, err := tls.NewCertRenewer(
-		kubeClient,
+		metrics.ObjectClient[*corev1.Secret](
+			metrics.NamespacedClientQueryRecorder(metricsConfig, config.KyvernoNamespace(), "Secret", metrics.KubeClient),
+			kubeClient.CoreV1().Secrets(config.KyvernoNamespace()),
+		),
 		clientConfig,
 		tls.CertRenewalInterval,
 		tls.CAValidityDuration,
@@ -393,11 +395,7 @@ func main() {
 		logger.Error(err, "failed to initialize CertRenewer")
 		os.Exit(1)
 	}
-	certManager, err := certmanager.NewController(kubeKyvernoInformer.Core().V1().Secrets(), certRenewer)
-	if err != nil {
-		logger.Error(err, "failed to initialize CertManager")
-		os.Exit(1)
-	}
+	certManager := certmanager.NewController(kubeKyvernoInformer.Core().V1().Secrets(), certRenewer)
 
 	webhookController := webhookcontroller.NewController(
 		metrics.ObjectClient[*corev1.Secret](
@@ -546,7 +544,7 @@ func main() {
 	go configurationController.Run(signalCtx, configcontroller.Workers)
 	go eventGenerator.Run(signalCtx, 3)
 
-	if !debug {
+	if serverIP == "" {
 		go webhookMonitor.Run(signalCtx, webhookCfg, certRenewer, eventGenerator)
 	}
 

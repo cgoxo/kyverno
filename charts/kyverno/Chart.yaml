@@ -1,8 +1,8 @@
 apiVersion: v2
 type: application
 name: kyverno
-version: v2.5.3
-appVersion: v1.7.3
+version: 2.6.0
+appVersion: v1.8.0
 icon: https://github.com/kyverno/kyverno/raw/main/img/logo.png
 description: Kubernetes Native Policy Management
 keywords:
@@ -36,6 +36,8 @@ annotations:
       description: Docs for generatecontrollerExtraResources.
     - kind: changed
       description: Enable autogen internals by default.
+    - kind: added
+      description: Allow overriding of test security context and resource block.
     - kind: fixed
       description: Self signed certificates not using SANs.
     - kind: added

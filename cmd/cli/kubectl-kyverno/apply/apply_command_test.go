@@ -12,16 +12,12 @@ func Test_Apply(t *testing.T) {
 		PolicyPaths           []string
 		ResourcePaths         []string
 		expectedPolicyReports []preport.PolicyReport
-		config                ApplyCommandConfig
 	}
 
 	testcases := []TestCase{
 		{
-			config: ApplyCommandConfig{
-				PolicyPaths:   []string{"../../../../test/best_practices/disallow_latest_tag.yaml"},
-				ResourcePaths: []string{"../../../../test/resources/pod_with_version_tag.yaml"},
-				PolicyReport:  true,
-			},
+			PolicyPaths:   []string{"../../../../test/best_practices/disallow_latest_tag.yaml"},
+			ResourcePaths: []string{"../../../../test/resources/pod_with_version_tag.yaml"},
 			expectedPolicyReports: []preport.PolicyReport{
 				{
 					Summary: preport.PolicyReportSummary{
@@ -35,11 +31,8 @@ func Test_Apply(t *testing.T) {
 			},
 		},
 		{
-			config: ApplyCommandConfig{
-				PolicyPaths:   []string{"../../../../test/best_practices/disallow_latest_tag.yaml"},
-				ResourcePaths: []string{"../../../../test/resources/pod_with_latest_tag.yaml"},
-				PolicyReport:  true,
-			},
+			PolicyPaths:   []string{"../../../../test/best_practices/disallow_latest_tag.yaml"},
+			ResourcePaths: []string{"../../../../test/resources/pod_with_latest_tag.yaml"},
 			expectedPolicyReports: []preport.PolicyReport{
 				{
 					Summary: preport.PolicyReportSummary{
@@ -53,11 +46,8 @@ func Test_Apply(t *testing.T) {
 			},
 		},
 		{
-			config: ApplyCommandConfig{
-				PolicyPaths:   []string{"../../../../test/cli/apply/policies"},
-				ResourcePaths: []string{"../../../../test/cli/apply/resource"},
-				PolicyReport:  true,
-			},
+			PolicyPaths:   []string{"../../../../test/cli/apply/policies"},
+			ResourcePaths: []string{"../../../../test/cli/apply/resource"},
 			expectedPolicyReports: []preport.PolicyReport{
 				{
 					Summary: preport.PolicyReportSummary{
@@ -81,7 +71,7 @@ func Test_Apply(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		_, _, _, info, _ := tc.config.applyCommandHelper()
+		_, _, _, info, _ := applyCommandHelper(tc.ResourcePaths, "", false, true, "", "", "", "", tc.PolicyPaths, false, false)
 		resps := buildPolicyReports(info)
 		for i, resp := range resps {
 			compareSummary(tc.expectedPolicyReports[i].Summary, resp.UnstructuredContent()["summary"].(map[string]interface{}))
