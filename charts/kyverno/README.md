@@ -2,7 +2,7 @@
 
 Kubernetes Native Policy Management
 
-![Version: v2.5.3](https://img.shields.io/badge/Version-v2.5.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.7.3](https://img.shields.io/badge/AppVersion-v1.7.3-informational?style=flat-square)
+![Version: 2.6.0](https://img.shields.io/badge/Version-2.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.8.0](https://img.shields.io/badge/AppVersion-v1.8.0-informational?style=flat-square)
 
 ## About
 
@@ -45,6 +45,45 @@ The command deploys Kyverno on the Kubernetes cluster with default configuration
 
 The Kyverno ClusterRole/ClusterRoleBinding that manages webhook configurations must have the suffix `:webhook`. Ex., `*:webhook` or `kyverno:webhook`.
 Other ClusterRole/ClusterRoleBinding names are configurable.
+
+**Notes on using ArgoCD:**
+
+When deploying this chart with ArgoCD you will need to enable `Replace` in the `syncOptions`, and you probably want to ignore diff in aggregated cluster roles.
+
+You can do so by following instructions in these pages of ArgoCD documentation:
+- [Enable Replace in the syncOptions](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#replace-resource-instead-of-applying-changes)
+- [Ignore diff in aggregated cluster roles](https://argo-cd.readthedocs.io/en/stable/user-guide/diffing/#ignoring-rbac-changes-made-by-aggregateroles)
+
+ArgoCD uses helm only for templating but applies the results with `kubectl`.
+
+Unfortunately `kubectl` adds metadata that will cross the limit allowed by Kuberrnetes. Using `Replace` overcomes this limitation.
+
+Another option is to use server side apply, this will be supported in ArgoCD v2.5.
+
+Below is an example of ArgoCD application manifest that should work with this chart:
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+spec:
+  destination:
+    namespace: kyverno
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    chart: kyverno
+    repoURL: https://kyverno.github.io/kyverno
+    targetRevision: 2.6.0
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - Replace=true
+```
 
 ## Uninstalling the Chart
 
