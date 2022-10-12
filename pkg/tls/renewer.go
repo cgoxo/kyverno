@@ -7,14 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/kyverno/kyverno/pkg/config"
+	controllerutils "github.com/kyverno/kyverno/pkg/utils/controller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -33,28 +31,22 @@ const (
 // webhook configurations and webhook server
 // renews RootCA at the given interval
 type CertRenewer struct {
-	client              kubernetes.Interface
+	client              controllerutils.ObjectClient[*corev1.Secret]
 	certRenewalInterval time.Duration
 	caValidityDuration  time.Duration
 	tlsValidityDuration time.Duration
-	certProps           *certificateProps
 
 	// IP address where Kyverno controller runs. Only required if out-of-cluster.
 	serverIP string
 }
 
 // NewCertRenewer returns an instance of CertRenewer
-func NewCertRenewer(client kubernetes.Interface, clientConfig *rest.Config, certRenewalInterval, caValidityDuration, tlsValidityDuration time.Duration, serverIP string, log logr.Logger) (*CertRenewer, error) {
-	certProps, err := newCertificateProps(clientConfig)
-	if err != nil {
-		return nil, err
-	}
+func NewCertRenewer(client controllerutils.ObjectClient[*corev1.Secret], certRenewalInterval, caValidityDuration, tlsValidityDuration time.Duration, serverIP string) (*CertRenewer, error) {
 	return &CertRenewer{
 		client:              client,
 		certRenewalInterval: certRenewalInterval,
 		caValidityDuration:  caValidityDuration,
 		tlsValidityDuration: tlsValidityDuration,
-		certProps:           certProps,
 		serverIP:            serverIP,
 	}, nil
 }
@@ -125,7 +117,7 @@ func (c *CertRenewer) RenewTLS() error {
 		logger.Error(err, "tls is not valid but certificates are not managed by kyverno, we can't renew them")
 		return err
 	}
-	tlsKey, tlsCert, err := generateTLS(c.certProps, c.serverIP, caCerts[len(caCerts)-1], caKey, c.tlsValidityDuration)
+	tlsKey, tlsCert, err := generateTLS(c.serverIP, caCerts[len(caCerts)-1], caKey, c.tlsValidityDuration)
 	if err != nil {
 		logger.Error(err, "failed to generate TLS")
 		return err
@@ -152,7 +144,7 @@ func (c *CertRenewer) ValidateCert() (bool, error) {
 }
 
 func (c *CertRenewer) getSecret(name string) (*corev1.Secret, error) {
-	if s, err := c.client.CoreV1().Secrets(config.KyvernoNamespace()).Get(context.TODO(), name, metav1.GetOptions{}); err != nil {
+	if s, err := c.client.Get(context.TODO(), name, metav1.GetOptions{}); err != nil {
 		return nil, err
 	} else {
 		return s, nil
@@ -226,14 +218,14 @@ func (c *CertRenewer) writeSecret(name string, key *rsa.PrivateKey, certs ...*x5
 		corev1.TLSPrivateKeyKey: privateKeyToPem(key),
 	}
 	if secret.ResourceVersion == "" {
-		if _, err := c.client.CoreV1().Secrets(config.KyvernoNamespace()).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
+		if _, err := c.client.Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 			logger.Error(err, "failed to update secret")
 			return err
 		} else {
 			logger.Info("secret created")
 		}
 	} else {
-		if _, err := c.client.CoreV1().Secrets(config.KyvernoNamespace()).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.client.Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
 			logger.Error(err, "failed to update secret")
 			return err
 		} else {

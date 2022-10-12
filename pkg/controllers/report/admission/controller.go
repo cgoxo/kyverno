@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	kyvernov1alpha2 "github.com/kyverno/kyverno/api/kyverno/v1alpha2"
 	"github.com/kyverno/kyverno/pkg/client/clientset/versioned"
+	"github.com/kyverno/kyverno/pkg/controllers"
 	"github.com/kyverno/kyverno/pkg/controllers/report/resource"
 	controllerutils "github.com/kyverno/kyverno/pkg/utils/controller"
 	reportutils "github.com/kyverno/kyverno/pkg/utils/report"
@@ -21,8 +22,10 @@ import (
 )
 
 const (
-	maxRetries = 10
-	workers    = 2
+	// Workers is the number of workers for this controller
+	Workers        = 2
+	ControllerName = "admission-report-controller"
+	maxRetries     = 10
 )
 
 type controller struct {
@@ -46,10 +49,10 @@ func NewController(
 	client versioned.Interface,
 	metadataFactory metadatainformers.SharedInformerFactory,
 	metadataCache resource.MetadataCache,
-) *controller {
+) controllers.Controller {
 	admrInformer := metadataFactory.ForResource(kyvernov1alpha2.SchemeGroupVersion.WithResource("admissionreports"))
 	cadmrInformer := metadataFactory.ForResource(kyvernov1alpha2.SchemeGroupVersion.WithResource("clusteradmissionreports"))
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), ControllerName)
 	c := controller{
 		client:        client,
 		admrLister:    admrInformer.Lister(),
@@ -62,7 +65,7 @@ func NewController(
 	return &c
 }
 
-func (c *controller) Run(ctx context.Context) {
+func (c *controller) Run(ctx context.Context, workers int) {
 	c.metadataCache.AddEventHandler(func(uid types.UID, _ schema.GroupVersionKind, _ resource.Resource) {
 		selector, err := reportutils.SelectorResourceUidEquals(uid)
 		if err != nil {
@@ -72,7 +75,7 @@ func (c *controller) Run(ctx context.Context) {
 			logger.Error(err, "failed to enqueue")
 		}
 	})
-	controllerutils.Run(ctx, controllerName, logger.V(3), c.queue, workers, maxRetries, c.reconcile)
+	controllerutils.Run(ctx, ControllerName, logger.V(3), c.queue, workers, maxRetries, c.reconcile)
 }
 
 func (c *controller) enqueue(selector labels.Selector) error {
