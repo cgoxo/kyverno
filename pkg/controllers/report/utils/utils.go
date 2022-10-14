@@ -30,13 +30,12 @@ func BuildKindSet(logger logr.Logger, policies ...kyvernov1.PolicyInterface) set
 	return kinds
 }
 
-func RemoveNonValidationPolicies(logger logr.Logger, policies ...kyvernov1.PolicyInterface) []kyvernov1.PolicyInterface {
-	var validationPolicies []kyvernov1.PolicyInterface
+func RemoveNonBackgroundPolicies(logger logr.Logger, policies ...kyvernov1.PolicyInterface) []kyvernov1.PolicyInterface {
+	var backgroundPolicies []kyvernov1.PolicyInterface
 	for _, pol := range policies {
-		spec := pol.GetSpec()
-		if spec.HasVerifyImages() || spec.HasValidate() || spec.HasYAMLSignatureVerify() {
-			validationPolicies = append(validationPolicies, pol)
+		if CanBackgroundProcess(logger, pol) {
+			backgroundPolicies = append(backgroundPolicies, pol)
 		}
 	}
-	return validationPolicies
+	return backgroundPolicies
 }
