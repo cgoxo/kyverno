@@ -33,8 +33,8 @@ require (
 	github.com/onsi/gomega v1.22.1
 	github.com/orcaman/concurrent-map/v2 v2.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/sigstore/cosign v1.12.1
-	github.com/sigstore/k8s-manifest-sigstore v0.4.1
+	github.com/sigstore/cosign v1.13.0
+	github.com/sigstore/k8s-manifest-sigstore v0.4.2
 	github.com/sigstore/sigstore v1.4.4
 	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.0
@@ -61,7 +61,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.25.2
-	k8s.io/apiextensions-apiserver v0.25.2
+	k8s.io/apiextensions-apiserver v0.25.0
 	k8s.io/apimachinery v0.25.2
 	k8s.io/cli-runtime v0.25.2
 	k8s.io/client-go v0.25.2
