@@ -126,27 +126,24 @@ func (c *controller) updateDynamicWatchers(ctx context.Context) error {
 		return err
 	}
 	kinds := utils.BuildKindSet(logger, utils.RemoveNonValidationPolicies(logger, append(clusterPolicies, policies...)...)...)
-	gvrs := map[schema.GroupVersionKind]schema.GroupVersionResource{}
+	gvrs := map[string]schema.GroupVersionResource{}
 	for _, kind := range kinds.List() {
 		apiVersion, kind := kubeutils.GetKindFromGVK(kind)
 		apiResource, gvr, err := c.client.Discovery().FindResource(apiVersion, kind)
 		if err != nil {
 			logger.Error(err, "failed to get gvr from kind", "kind", kind)
+		} else if apiVersion == "" && kind == "Event" {
+			logger.Info("Event cannot be an owner, skipping", "apiVersion", apiVersion, "kind", kind)
 		} else {
-			gvk := schema.GroupVersionKind{Group: apiResource.Group, Version: apiResource.Version, Kind: apiResource.Kind}
-			if !reportutils.IsGvkSupported(gvk) {
-				logger.Info("kind is not supported", "gvk", gvk)
+			if pkgutils.ContainsString(apiResource.Verbs, "list") && pkgutils.ContainsString(apiResource.Verbs, "watch") {
+				gvrs[kind] = gvr
 			} else {
-				if pkgutils.ContainsString(apiResource.Verbs, "list") && pkgutils.ContainsString(apiResource.Verbs, "watch") {
-					gvrs[gvk] = gvr
-				} else {
-					logger.Info("list/watch not supported for kind", "kind", kind)
-				}
+				logger.Info("list/watch not supported for kind", "kind", kind)
 			}
 		}
 	}
 	dynamicWatchers := map[schema.GroupVersionResource]*watcher{}
-	for gvk, gvr := range gvrs {
+	for kind, gvr := range gvrs {
 		// if we already have one, transfer it to the new map
 		if c.dynamicWatchers[gvr] != nil {
 			dynamicWatchers[gvr] = c.dynamicWatchers[gvr]
@@ -159,7 +156,7 @@ func (c *controller) updateDynamicWatchers(ctx context.Context) error {
 			} else {
 				w := &watcher{
 					watcher: watchInterface,
-					gvk:     gvk,
+					gvk:     gvr.GroupVersion().WithKind(kind),
 					hashes:  map[types.UID]Resource{},
 				}
 				go func() {

@@ -2,4 +2,6 @@ package webhook
 
 import "sigs.k8s.io/controller-runtime/pkg/log"
 
-var logger = log.Log.WithName(ControllerName)
+const controllerName = "webhook-ca-controller"
+
+var logger = log.Log.WithName(controllerName)
